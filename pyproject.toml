@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "detectabot"
 version = "0.1.0"
-package-mode = false
+# Remove package-mode = false or set to true
 description = "Agent-driven detection engineering pipeline"
 authors = ["Your Name <your@email.com>"]
 
@@ -9,7 +9,12 @@ authors = ["Your Name <your@email.com>"]
 python = "^3.11"
 feedparser = "^6.0.10"
 requests = "^2.31.0"
-openai = "^0.27.0"
+openai = "^1.0.0"
+pyyaml = "^6.0" 
+
+[[tool.poetry.packages]]
+include = "detectabot"
+from = "src"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

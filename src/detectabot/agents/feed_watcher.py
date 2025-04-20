@@ -1,17 +1,27 @@
 import feedparser
+import yaml
+import os
 
-FEEDS = [
-    ("CISA Advisories", "https://www.cisa.gov/news-events/cybersecurity-advisories.xml"),
-    ("Dark Reading", "https://www.darkreading.com/rss.xml"),
-]
+CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../config.yaml'))
 
-def main():
-    for name, url in FEEDS:
-        print(f"--- {name} ---")
+def load_config():
+    with open(CONFIG_PATH, 'r') as f:
+        config = yaml.safe_load(f)
+    feeds = [(feed['name'], feed['url']) for feed in config.get('feeds', [])]
+    poll_interval = config.get('poll_interval_minutes', 60)
+    return feeds, poll_interval
+
+def get_latest_entries():
+    feeds, poll_interval = load_config()
+    latest_entries = []
+    for name, url in feeds:
         feed = feedparser.parse(url)
-        for entry in feed.entries[:5]:  # Show top 5 entries
-            print(f"- {entry.get('title')} ({entry.get('link')})")
-        print()
+        if feed.entries:
+            entry = feed.entries[0]
+            latest_entries.append({'name': name, 'url': url, 'entry': entry})
+    return latest_entries
 
 if __name__ == "__main__":
-    main()
+    for item in get_latest_entries():
+        entry = item['entry']
+        print(f"--- {item['name']} ---\n- {entry.get('title')} ({entry.get('link')})\n")
