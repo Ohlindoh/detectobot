@@ -1,0 +1,6 @@
+feeds:
+  - url: https://www.cisa.gov/news-events/cybersecurity-advisories.xml
+    name: CISA Advisories
+  - url: https://www.darkreading.com/rss.xml
+    name: Dark Reading
+poll_interval_minutes: 60

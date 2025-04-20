@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "detectabot"
+version = "0.1.0"
+package-mode = false
+description = "Agent-driven detection engineering pipeline"
+authors = ["Your Name <your@email.com>"]
+
+[tool.poetry.dependencies]
+python = "^3.11"
+feedparser = "^6.0.10"
+requests = "^2.31.0"
+openai = "^0.27.0"
+
+[build-system]
+requires = ["poetry-core>=1.0.0"]
+build-backend = "poetry.core.masonry.api"
