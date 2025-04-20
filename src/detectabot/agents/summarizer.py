@@ -1,26 +1,62 @@
 import os
 from detectabot.agents.feed_watcher import get_latest_entries
-from openai import OpenAI
+import openai
 
-# Initialize client
-client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+openai.api_key = os.environ.get("OPENAI_API_KEY")
 
-# Update the API call
+# Create a basic assistant once (for demo, ephemeral)
+ASSISTANT_INSTRUCTIONS = (
+    "You are a threat-intel summarisation assistant. "
+    "Please summarise the following article in ~200 words, "
+    "and list any MITRE ATT&CK technique IDs you find."
+)
+
+assistant = openai.beta.assistants.create(
+    name="Threat Intel Summarizer",
+    instructions=ASSISTANT_INSTRUCTIONS,
+    model="gpt-4o"
+)
+
 def summarise_text(text: str) -> str:
-    """Ask OpenAI to produce a 200‑word summary with ATT&CK IDs."""
-    prompt = (
-        "You are a threat‑intel summarisation assistant.\n"
-        "Please summarise the following article in ~200 words, "
-        "and list any MITRE ATT&CK technique IDs you find:\n\n"
-        + text
+    """Ask OpenAI agent to produce a 200-word summary with ATT&CK IDs."""
+    # Diagnostic: print the text being sent to the agent
+    print("\n[DIAGNOSTIC] Text sent to agent:\n" + "-"*40)
+    print(text)
+    print("-"*40 + "\n")
+
+    # Create a new thread for this summarization
+    thread = openai.beta.threads.create()
+    # Add the message to the thread
+    openai.beta.threads.messages.create(
+        thread_id=thread.id,
+        role="user",
+        content=text
     )
-    resp = client.chat.completions.create(
-        model="gpt-4o",
-        messages=[{"role":"user", "content":prompt}],
-        temperature=0.2,
-        max_tokens=500,
+    # Run the assistant on the thread
+    run = openai.beta.threads.runs.create(
+        thread_id=thread.id,
+        assistant_id=assistant.id
     )
-    return resp.choices[0].message.content.strip()
+    # Poll for completion
+    import time
+    while True:
+        run_status = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
+        if run_status.status == "completed":
+            break
+        time.sleep(0.5)
+    # Get the assistant's message
+    messages = openai.beta.threads.messages.list(thread_id=thread.id)
+    # Find the latest assistant message
+    summary = None
+    for m in messages:
+        if m.role == "assistant":
+            summary = m.content[0].text.value
+            break
+    # Diagnostic: print the raw assistant message
+    print("[DIAGNOSTIC] Raw agent response:")
+    print(summary)
+    print()
+    return summary or "[No summary returned]"
 
 if __name__ == "__main__":
     entries = get_latest_entries()
