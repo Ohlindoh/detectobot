@@ -2,7 +2,7 @@ import os
 import argparse
 import openai
 import time
-from detectabot.agents.feed_watcher import get_latest_article_links
+from detectobot.agents.feed_watcher import get_latest_article_links
 import requests
 from bs4 import BeautifulSoup
 from readability import Document
