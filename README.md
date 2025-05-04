@@ -1,1 +1,1 @@
-# detectabot
+# detectobot
