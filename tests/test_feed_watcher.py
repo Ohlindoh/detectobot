@@ -1,6 +1,15 @@
 import sqlite3
 from pathlib import Path
-from detectabot.feed_watcher import entry_hash, check_and_store, init_db
+import importlib.util
+
+module_path = Path(__file__).parent.parent / "src" / "detectobot" / "feed_watcher.py"
+spec = importlib.util.spec_from_file_location("feed_watcher", module_path)
+feed_watcher = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(feed_watcher)
+
+entry_hash = feed_watcher.entry_hash
+check_and_store = feed_watcher.check_and_store
+init_db = feed_watcher.init_db
 
 def test_entry_hash_uniqueness():
     entry1 = {"link": "https://example.com/1"}
@@ -10,15 +19,7 @@ def test_entry_hash_uniqueness():
 def test_check_and_store(tmp_path):
     db_path = tmp_path / "db.sqlite"
     conn = sqlite3.connect(db_path)
-    conn.execute("""
-        CREATE TABLE IF NOT EXISTS seen_entries (
-            hash TEXT PRIMARY KEY,
-            feed_name TEXT,
-            entry_title TEXT,
-            entry_link TEXT,
-            timestamp INTEGER
-        )
-    """)
+    init_db(conn)
     entry = {"link": "https://example.com/unique"}
     h = entry_hash(entry)
     assert check_and_store(conn, h, "Test Feed", entry) is True
