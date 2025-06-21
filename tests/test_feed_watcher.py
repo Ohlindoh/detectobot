@@ -1,11 +1,47 @@
+import sys
 import sqlite3
 from pathlib import Path
-import importlib.util
+import types
 
-module_path = Path(__file__).parent.parent / "src" / "detectobot" / "feed_watcher.py"
-spec = importlib.util.spec_from_file_location("feed_watcher", module_path)
-feed_watcher = importlib.util.module_from_spec(spec)
-spec.loader.exec_module(feed_watcher)
+# Allow importing modules from the src directory without installing the package
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+
+# Provide a minimal feedparser stub so agent modules can be imported without the
+# actual dependency present in the environment.
+feedparser_stub = types.ModuleType("feedparser")
+feedparser_stub.parse = lambda url: {"entries": []}
+sys.modules.setdefault("feedparser", feedparser_stub)
+
+yaml_stub = types.ModuleType("yaml")
+
+def _simple_yaml_load(stream):
+    text = stream.read() if hasattr(stream, "read") else stream
+    lines = [line.rstrip() for line in text.splitlines()]
+    feeds = []
+    current = None
+    for line in lines:
+        if line.startswith("feeds:"):
+            continue
+        if line.startswith("  - "):
+            if current:
+                feeds.append(current)
+            current = {}
+            remainder = line[4:]
+            if remainder:
+                key, value = remainder.split(":", 1)
+                current[key.strip()] = value.strip()
+        elif line.startswith("    "):
+            key, value = line.strip().split(":", 1)
+            current[key.strip()] = value.strip()
+    if current:
+        feeds.append(current)
+    return {"feeds": feeds}
+
+yaml_stub.safe_load = _simple_yaml_load
+sys.modules.setdefault("yaml", yaml_stub)
+
+from detectobot import feed_watcher
+from detectobot.agents import feed_watcher as agent_feed_watcher
 
 entry_hash = feed_watcher.entry_hash
 check_and_store = feed_watcher.check_and_store
@@ -25,3 +61,32 @@ def test_check_and_store(tmp_path):
     assert check_and_store(conn, h, "Test Feed", entry) is True
     # Second insert should be False (duplicate)
     assert check_and_store(conn, h, "Test Feed", entry) is False
+
+
+def test_load_config(tmp_path, monkeypatch):
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text(
+        "feeds:\n  - name: MyFeed\n    url: http://example.com/rss\n"
+    )
+    monkeypatch.setattr(agent_feed_watcher, "CONFIG_PATH", str(cfg))
+    feeds = agent_feed_watcher.load_config()
+    assert feeds == [("MyFeed", "http://example.com/rss")]
+
+
+def test_get_latest_article_links(monkeypatch):
+    monkeypatch.setattr(
+        agent_feed_watcher,
+        "load_config",
+        lambda: [("LocalFeed", "http://does-not-matter")],
+    )
+
+    class FakeFeed:
+        def __init__(self, entries):
+            self.entries = entries
+
+    def fake_parse(url):
+        return FakeFeed([{"link": "https://example.com/local"}])
+
+    monkeypatch.setattr(agent_feed_watcher.feedparser, "parse", fake_parse)
+    links = agent_feed_watcher.get_latest_article_links()
+    assert links == [{"name": "LocalFeed", "link": "https://example.com/local"}]
