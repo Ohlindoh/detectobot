@@ -8,7 +8,7 @@ SQLite database so each run only processes unseen articles.
 
 ## Agents
 
-- `summarizer.py` – downloads any new articles from the configured sites and summarizes them with OpenAI.
+- `summarizer.py` – processes a URL or new site links and outputs a DetectionSpec JSON using Pydantic AI.
 - `detection_agent.py` – similar to the summarizer but also interprets the article and proposes detection strategies. Pass `--prompt` to experiment with custom system prompts.
 
 Run tests with `pytest`.
