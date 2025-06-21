@@ -1,18 +1,17 @@
-"""Threat intelligence summarization agent using Pydantic AI."""
+"""ThreatIntel2Detection summarizer using Pydantic AI."""
 import os
 import argparse
-from typing import List
 
 import requests
 from bs4 import BeautifulSoup
 from readability import Document
-from pydantic import BaseModel
-from pydantic_ai import Agent
-from pydantic_ai.models.openai import OpenAIModel
+from pydantic import BaseModel, HttpUrl
+from pydantic_ai.llm.openai import OpenAIChat
+from pydantic_ai.prompt import Prompt
 
-# Allow absolute imports
+# Allow absolute imports for watcher utilities
 import sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../..")))
 from detectobot.core.watcher import get_new_site_links
 
 DEFAULT_PROMPT = ("""
@@ -87,28 +86,51 @@ DEFAULT_PROMPT = ("""
     """
 )
 
-class SummaryResponse(BaseModel):
-    summary: str
-    mitre_ids: List[str]
-    detection_tips: str
+
+class SigmaStub(BaseModel):
+    title: str
+    id: str
+    logsource: dict[str, str]
+    detection: dict[str, str | list | dict]
+    condition: str
+    tags: list[str]
+    falsepositives: list[str]
 
 
-def analyze_text(text: str, system_prompt: str = DEFAULT_PROMPT) -> SummaryResponse:
-    """Send text to the LLM using Pydantic AI and return structured response."""
-    agent = Agent(
-        'openai:gpt-4o',
-        system_prompt=system_prompt
+class TTPEntry(BaseModel):
+    tactic: str
+    technique: str
+    subtechnique: str | None
+    description: str
+    detectability_confidence: str
+    confidence_reason: str
+    sigma_stub: SigmaStub
+    validation: list[str]
+    falsepositive_notes: list[str]
+
+
+class DetectionSpec(BaseModel):
+    article_title: str
+    source_url: HttpUrl
+    publication_date: str
+    threat_actor: str | None
+    ttps: list[TTPEntry]
+    prerequisites: list[str]
+    notes: str
+    status: str
+
+def analyze_text(text: str, system_prompt: str = DEFAULT_PROMPT) -> DetectionSpec:
+    """Send text to the LLM and parse the DetectionSpec."""
+    llm = OpenAIChat(
+        api_key=os.environ.get("OPENAI_API_KEY"),
+        model="gpt-4o",
     )
-    
-    prompt = f"""{text}
-
-    Return your answer with three fields:
-    - Summary
-    - MITRE IDs (as a list)
-    - Detection Tips"""
-    
-    result = agent.run_sync(prompt, output_type=SummaryResponse)
-    return result.output
+    prompt = Prompt(
+        system=system_prompt,
+        user="{article_text}"
+    )
+    response = llm(prompt, DetectionSpec, article_text=text)
+    return response
 
 
 def fetch_article_text(url: str) -> str:
@@ -137,32 +159,35 @@ def fetch_article_text(url: str) -> str:
 
 
 def main() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="Threat intel summarizer")
-    parser.add_argument("--dry-run", action="store_true", help="Preview article text only")
+    parser = argparse.ArgumentParser(description="Summarize a threat intel article")
+    parser.add_argument("url", nargs="?", help="Article URL to process")
+    parser.add_argument("--prompt", help="Override system prompt text or path to file")
+    parser.add_argument("--dry-run", action="store_true", help="Print article text only")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = main()
-    links = get_new_site_links()
-    if not links:
-        print("No new articles found.")
-        exit(0)
+    system_prompt = DEFAULT_PROMPT
+    if args.prompt:
+        if os.path.isfile(args.prompt):
+            system_prompt = open(args.prompt).read()
+        else:
+            system_prompt = args.prompt
 
-    for item in links:
-        name = item["name"]
+    if args.url:
+        sources = [{"name": "manual", "link": args.url}]
+    else:
+        sources = get_new_site_links()
+        if not sources:
+            print("No new articles found.")
+            exit(0)
+
+    for item in sources:
         link = item["link"]
-        print(f"\n=== Source: {name} ===")
-        print(f"Article URL: {link}")
         text = fetch_article_text(link)
         if args.dry_run:
-            print(text[:7000] + ("..." if len(text) > 7000 else ""))
+            print(text)
         else:
-            result = analyze_text(text)
-            print("\n=== SUMMARY ===")
-            print(f"{result.summary}")
-            print("\n=== MITRE ATT&CK TECHNIQUES ===")
-            for technique in result.mitre_ids:
-                print(f"- {technique}")
-            print("\n=== DETECTION TIPS ===")
-            print(f"{result.detection_tips}")
+            result = analyze_text(text, system_prompt)
+            print(result.model_dump_json(indent=2))
