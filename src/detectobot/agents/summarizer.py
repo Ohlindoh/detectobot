@@ -2,10 +2,14 @@ import os
 import argparse
 import openai
 import time
-from detectobot.agents.site_watcher import get_new_article_links
 import requests
+import sys
 from bs4 import BeautifulSoup
 from readability import Document
+
+# Add the parent directory to sys.path to allow absolute imports
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+from detectobot.watcher import get_new_site_links, load_config
 
 # Initialize OpenAI client
 openai.api_key = os.environ.get("OPENAI_API_KEY")
@@ -36,12 +40,25 @@ def summarize_text(text):
     
     return "[No summary returned]"
 
-if __name__ == "__main__":
+def main():
     parser = argparse.ArgumentParser(description="Threat intel summarizer")
     parser.add_argument('--dry-run', action='store_true', help='Preview without API call')
     args = parser.parse_args()
+    return args
 
-    for feed in get_new_article_links():
+if __name__ == "__main__":
+    args = main()
+
+    # Get articles from configured sites
+    new_links = get_new_site_links()
+    if not new_links:
+        print("No new articles found.")
+        exit(0)
+    
+    # Process only the first article for now
+    # In the future, we'll check if it's already been summarized
+    feed = new_links[0]
+    if feed:
         name = feed['name']
         link = feed['link']
         print(f"\n=== Feed: {name} ===")

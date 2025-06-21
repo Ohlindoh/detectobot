@@ -5,4 +5,4 @@ sites:
   - url: https://posts.specterops.io/
     name: SpecterOps Posts
     selector: article a
-  poll_interval_minutes: 60
+poll_interval_minutes: 60
