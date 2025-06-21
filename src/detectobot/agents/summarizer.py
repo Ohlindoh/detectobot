@@ -1,96 +1,95 @@
+"""Threat intelligence summarization agent using Pydantic AI."""
 import os
 import argparse
-import openai
-import time
+from typing import List
+
 import requests
 from bs4 import BeautifulSoup
 from readability import Document
+from pydantic import BaseModel
+from pydantic_ai.llm.openai import OpenAIChat
+from pydantic_ai.prompt import Prompt
 
-# Add the parent directory to sys.path to allow absolute imports
+# Allow absolute imports
 import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
 from detectobot.core.watcher import get_new_site_links
 
-# Initialize OpenAI client
-openai.api_key = os.environ.get("OPENAI_API_KEY")
-assistant = openai.beta.assistants.create(
-    name="Threat Intel Summarizer",
-    instructions="You are a threat-intel summarization assistant. Summarize the following article in ~200 words and list any MITRE ATT&CK technique IDs you find.",
-    model="gpt-4o"
+DEFAULT_PROMPT = (
+    "You are a threat-intel assistant for detection engineers. "
+    "Summarize the article in about 200 words, identify any MITRE ATT&CK technique IDs, "
+    "and provide brief detection tips based on those techniques."
 )
 
+class SummaryResponse(BaseModel):
+    summary: str
+    mitre_ids: List[str]
+    detection_tips: str
 
-def summarize_text(text):
-    """Send text to the OpenAI Assistant and return the summary."""
-    thread = openai.beta.threads.create()
-    openai.beta.threads.messages.create(thread_id=thread.id, role="user", content=text)
-    run = openai.beta.threads.runs.create(thread_id=thread.id, assistant_id=assistant.id)
-    
-    # Wait for completion
-    while True:
-        run_status = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-        if run_status.status == "completed":
-            break
-        time.sleep(1)
-    
-    messages = openai.beta.threads.messages.list(thread_id=thread.id)
-    for m in messages:
-        if m.role == "assistant":
-            return m.content[0].text.value
-    
-    return "[No summary returned]"
 
-def main():
+def analyze_text(text: str, system_prompt: str = DEFAULT_PROMPT) -> SummaryResponse:
+    """Send text to the LLM using Pydantic AI and return structured response."""
+    llm = OpenAIChat(api_key=os.environ.get("OPENAI_API_KEY"), model="gpt-4o")
+    prompt = Prompt(
+        system=system_prompt,
+        user="""{article_text}
+
+Return your answer with three fields:
+- Summary
+- MITRE IDs (as a list)
+- Detection Tips"""
+    )
+    return llm(prompt, SummaryResponse, article_text=text)
+
+
+def fetch_article_text(url: str) -> str:
+    """Fetch and return the main text from an article URL."""
+    headers = {"User-Agent": "Mozilla/5.0"}
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        resp.raise_for_status()
+        try:
+            doc = Document(resp.text)
+            article_html = doc.summary()
+            soup = BeautifulSoup(article_html, "html.parser")
+            text = soup.get_text(separator="\n")
+            if text.strip():
+                return text
+            raise ValueError("empty")
+        except Exception:
+            soup = BeautifulSoup(resp.text, "html.parser")
+            paragraphs = soup.find_all("p")
+            text = "\n".join(p.get_text() for p in paragraphs)
+            if text.strip():
+                return text
+            return soup.get_text()
+    except Exception as e:
+        return f"[ERROR fetching article: {e}]"
+
+
+def main() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Threat intel summarizer")
-    parser.add_argument('--dry-run', action='store_true', help='Preview without API call')
-    args = parser.parse_args()
-    return args
+    parser.add_argument("--dry-run", action="store_true", help="Preview article text only")
+    return parser.parse_args()
+
 
 if __name__ == "__main__":
     args = main()
-
-    # Get articles from configured sites
-    new_links = get_new_site_links()
-    if not new_links:
+    links = get_new_site_links()
+    if not links:
         print("No new articles found.")
         exit(0)
-    
-    # Process only the first article for now
-    # In the future, we'll check if it's already been summarized
-    feed = new_links[0]
-    if feed:
-        name = feed['name']
-        link = feed['link']
-        print(f"\n=== Feed: {name} ===")
+
+    for item in links:
+        name = item["name"]
+        link = item["link"]
+        print(f"\n=== Source: {name} ===")
         print(f"Article URL: {link}")
-        try:
-            headers = {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            }
-            response = requests.get(link, headers=headers, timeout=10)
-            response.raise_for_status()
-            # Try to extract main content using readability-lxml
-            try:
-                doc = Document(response.text)
-                article_html = doc.summary()
-                soup = BeautifulSoup(article_html, 'html.parser')
-                article_text = soup.get_text(separator='\n')
-                if not article_text.strip():
-                    raise ValueError("Readability returned empty text")
-            except Exception:
-                # Fallback to joining all <p> tags
-                soup = BeautifulSoup(response.text, 'html.parser')
-                paragraphs = soup.find_all('p')
-                article_text = '\n'.join(p.get_text() for p in paragraphs)
-                if not article_text.strip():
-                    article_text = soup.get_text()
-        except Exception as e:
-            print(f"[ERROR] Failed to fetch or parse article: {e}")
-            article_text = ""
+        text = fetch_article_text(link)
         if args.dry_run:
-            print("[PREVIEW] Article text (first 500 chars):")
-            print(article_text[:7000] + ("..." if len(article_text) > 7000 else ""))
+            print(text[:7000] + ("..." if len(text) > 7000 else ""))
         else:
-            summary = summarize_text(article_text)
-            print("[SUMMARY]")
-            print(summary)
+            result = analyze_text(text)
+            print(f"Summary:\n{result.summary}\n")
+            print(f"MITRE IDs: {', '.join(result.mitre_ids)}")
+            print(f"Detection Tips:\n{result.detection_tips}\n")
