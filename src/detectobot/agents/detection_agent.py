@@ -2,7 +2,7 @@ import os
 import argparse
 import openai
 import time
-from detectobot.agents.feed_watcher import get_latest_article_links
+from detectobot.agents.site_watcher import get_new_article_links
 import requests
 from bs4 import BeautifulSoup
 from readability import Document
@@ -91,7 +91,7 @@ if __name__ == "__main__":
 
     assistant = build_assistant(system_prompt)
 
-    for feed in get_latest_article_links():
+    for feed in get_new_article_links():
         name = feed["name"]
         link = feed["link"]
         print(f"\n=== Feed: {name} ===")

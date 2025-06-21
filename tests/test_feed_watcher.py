@@ -90,3 +90,35 @@ def test_get_latest_article_links(monkeypatch):
     monkeypatch.setattr(agent_feed_watcher.feedparser, "parse", fake_parse)
     links = agent_feed_watcher.get_latest_article_links()
     assert links == [{"name": "LocalFeed", "link": "https://example.com/local"}]
+
+
+def test_get_new_article_links(monkeypatch, tmp_path):
+    cfg = tmp_path / "cfg.yaml"
+    cfg.write_text(
+        "feeds:\n  - name: LocalFeed\n    url: http://example.com/rss\n"
+    )
+    monkeypatch.setattr(agent_feed_watcher, "CONFIG_PATH", str(cfg))
+
+    class FakeFeed:
+        def __init__(self, entries):
+            self.entries = entries
+
+    def fake_parse(url):
+        return FakeFeed([
+            {"link": "https://example.com/new1", "title": "t"},
+            {"link": "https://example.com/new2", "title": "t"},
+        ])
+
+    monkeypatch.setattr(agent_feed_watcher.feedparser, "parse", fake_parse)
+
+    db_path = tmp_path / "db.sqlite"
+
+    links = agent_feed_watcher.get_new_article_links(db_path=str(db_path))
+    assert links == [
+        {"name": "LocalFeed", "link": "https://example.com/new1"},
+        {"name": "LocalFeed", "link": "https://example.com/new2"},
+    ]
+
+    # Second call should return empty list since entries are stored
+    links = agent_feed_watcher.get_new_article_links(db_path=str(db_path))
+    assert links == []
