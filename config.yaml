@@ -1,4 +1,8 @@
-feeds:
-  - url: https://www.darkreading.com/rss.xml
-    name: Dark Reading
-poll_interval_minutes: 60
+sites:
+  - url: https://thedfirreport.com/
+    name: DFIR Report
+    selector: h2 a
+  - url: https://posts.specterops.io/
+    name: SpecterOps Posts
+    selector: article a
+  poll_interval_minutes: 60

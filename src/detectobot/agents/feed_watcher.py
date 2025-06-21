@@ -1,8 +1,12 @@
 import feedparser
 import yaml
 import os
+import sqlite3
+
+from detectobot import feed_watcher as core
 
 CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../config.yaml'))
+DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../feed_watcher.db'))
 
 def load_config():
     """Load feed configuration from YAML file."""
@@ -23,6 +27,26 @@ def get_latest_article_links():
             if article_link:
                 latest_articles.append({'name': name, 'link': article_link})
     return latest_articles
+
+
+def get_new_article_links(db_path: str = DB_PATH):
+    """Return unseen article links for all configured feeds."""
+    feeds = load_config()
+    conn = sqlite3.connect(db_path)
+    core.init_db(conn)
+    new_articles = []
+
+    for name, url in feeds:
+        feed = feedparser.parse(url)
+        for entry in getattr(feed, "entries", []):
+            h = core.entry_hash(entry)
+            if core.check_and_store(conn, h, name, entry):
+                link = entry.get("link")
+                if link:
+                    new_articles.append({"name": name, "link": link})
+
+    conn.close()
+    return new_articles
 
 if __name__ == "__main__":
     for item in get_latest_article_links():
