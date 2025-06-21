@@ -1,6 +1,11 @@
+"""Database utilities for detectobot."""
 import hashlib
 import time
 import sqlite3
+import os
+
+# Define the database path relative to this file
+DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../../watcher.db'))
 
 def entry_hash(entry: dict) -> str:
     """Return a stable SHA-256 hash for a feed or site entry."""

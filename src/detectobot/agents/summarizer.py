@@ -3,13 +3,13 @@ import argparse
 import openai
 import time
 import requests
-import sys
 from bs4 import BeautifulSoup
 from readability import Document
 
 # Add the parent directory to sys.path to allow absolute imports
+import sys
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
-from detectobot.watcher import get_new_site_links, load_config
+from detectobot.core.watcher import get_new_site_links
 
 # Initialize OpenAI client
 openai.api_key = os.environ.get("OPENAI_API_KEY")

@@ -1,22 +1,15 @@
+"""Website and feed monitoring functionality."""
 import os
-import yaml
 import sqlite3
 import feedparser
 import requests
 from bs4 import BeautifulSoup
 from urllib.parse import urljoin
 from .db_utils import init_db, entry_hash, check_and_store
+from .config import load_config
 
-CONFIG_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../config.yaml'))
-DB_PATH = os.path.abspath(os.path.join(os.path.dirname(__file__), '../../watcher.db'))
-
-
-def load_config(section: str):
-    """Generic config loader for 'feeds' or 'sites'."""
-    with open(CONFIG_PATH, 'r') as f:
-        config = yaml.safe_load(f)
-    return config.get(section, [])
-
+# Use the DB_PATH from db_utils
+from .db_utils import DB_PATH
 
 def get_new_feed_links(db_path: str = DB_PATH):
     """Return unseen article links for all configured RSS feeds."""

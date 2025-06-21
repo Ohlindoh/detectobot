@@ -4,10 +4,14 @@ from pydantic import BaseModel
 from pydantic_ai.llm.openai import OpenAIChat
 from pydantic_ai.prompt import Prompt
 import time
-from detectobot.watcher import get_new_feed_links, get_new_site_links
 import requests
 from bs4 import BeautifulSoup
 from readability import Document
+
+# Add the parent directory to sys.path to allow absolute imports
+import sys
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../../')))
+from detectobot.core.watcher import get_new_feed_links, get_new_site_links
 
 DEFAULT_PROMPT = (
     "You are a detection engineering assistant. "
