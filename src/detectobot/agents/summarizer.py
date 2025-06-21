@@ -16,7 +16,7 @@ assistant = openai.beta.assistants.create(
 )
 
 
-def summarise_text(text):
+def summarize_text(text):
     """Send text to the OpenAI Assistant and return the summary."""
     thread = openai.beta.threads.create()
     openai.beta.threads.messages.create(thread_id=thread.id, role="user", content=text)
@@ -74,6 +74,6 @@ if __name__ == "__main__":
             print("[PREVIEW] Article text (first 500 chars):")
             print(article_text[:7000] + ("..." if len(article_text) > 7000 else ""))
         else:
-            summary = summarise_text(article_text)
+            summary = summarize_text(article_text)
             print("[SUMMARY]")
             print(summary)
