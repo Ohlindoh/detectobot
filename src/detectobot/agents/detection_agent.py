@@ -1,8 +1,10 @@
 import os
 import argparse
-import openai
+from pydantic import BaseModel
+from pydantic_ai.llm.openai import OpenAIChat
+from pydantic_ai.prompt import Prompt
 import time
-from detectobot.agents.site_watcher import get_new_article_links
+from detectobot.watcher import get_new_feed_links, get_new_site_links
 import requests
 from bs4 import BeautifulSoup
 from readability import Document
@@ -15,33 +17,34 @@ DEFAULT_PROMPT = (
 )
 
 
-def build_assistant(system_prompt: str):
-    """Create an OpenAI assistant with the given system prompt."""
-    openai.api_key = os.environ.get("OPENAI_API_KEY")
-    return openai.beta.assistants.create(
-        name="Detection Builder",
-        instructions=system_prompt,
-        model="gpt-4o",
+class DetectionResponse(BaseModel):
+    summary: str
+    detection_strategy: str
+
+
+def analyze_text(text: str, system_prompt: str) -> DetectionResponse:
+    """Send text to the LLM using Pydantic AI and return structured response."""
+    llm = OpenAIChat(
+        api_key=os.environ.get("OPENAI_API_KEY"),
+        model="gpt-4o"
     )
+    prompt = Prompt(
+        system=system_prompt,
+        user="""{article_text}
+
+Return your answer as two sections:
+- Summary: A concise summary (~200 words)
+- Detection Strategy: Your recommended detection strategy"""
+    )
+    response = llm(
+        prompt,
+        DetectionResponse,
+        article_text=text
+    )
+    return response
 
 
-def analyze_text(text: str, assistant):
-    """Send text to the assistant and return the response."""
-    thread = openai.beta.threads.create()
-    openai.beta.threads.messages.create(thread_id=thread.id, role="user", content=text)
-    run = openai.beta.threads.runs.create(thread_id=thread.id, assistant_id=assistant.id)
 
-    while True:
-        run_status = openai.beta.threads.runs.retrieve(thread_id=thread.id, run_id=run.id)
-        if run_status.status == "completed":
-            break
-        time.sleep(1)
-
-    messages = openai.beta.threads.messages.list(thread_id=thread.id)
-    for m in messages:
-        if m.role == "assistant":
-            return m.content[0].text.value
-    return "[No response]"
 
 
 def fetch_article_text(url: str) -> str:
@@ -89,16 +92,23 @@ if __name__ == "__main__":
     else:
         system_prompt = DEFAULT_PROMPT
 
-    assistant = build_assistant(system_prompt)
+    parser.add_argument("--source", choices=["feed", "site"], default="feed", help="Source type: feed (RSS) or site (HTML)")
+    args = parser.parse_args()
 
-    for feed in get_new_article_links():
-        name = feed["name"]
-        link = feed["link"]
-        print(f"\n=== Feed: {name} ===")
+    if args.source == "feed":
+        sources = get_new_feed_links()
+    else:
+        sources = get_new_site_links()
+
+    for item in sources:
+        name = item["name"]
+        link = item["link"]
+        print(f"\n=== Source: {name} ===")
         print(f"Article URL: {link}")
         text = fetch_article_text(link)
         if args.dry_run:
             print(text[:7000] + ("..." if len(text) > 7000 else ""))
         else:
-            result = analyze_text(text, assistant)
-            print(result)
+            result = analyze_text(text, system_prompt)
+            print(f"Summary:\n{result.summary}\n")
+            print(f"Detection Strategy:\n{result.detection_strategy}\n")

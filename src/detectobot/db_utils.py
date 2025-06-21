@@ -1,9 +1,9 @@
 import hashlib
 import time
-
+import sqlite3
 
 def entry_hash(entry: dict) -> str:
-    """Return a stable SHA-256 hash for a feed entry."""
+    """Return a stable SHA-256 hash for a feed or site entry."""
     link = entry.get("link", "")
     return hashlib.sha256(link.encode("utf-8")).hexdigest()
 
