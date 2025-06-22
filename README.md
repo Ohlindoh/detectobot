@@ -11,4 +11,18 @@ SQLite database so each run only processes unseen articles.
 - `summarizer.py` – processes a URL or new site links and outputs a DetectionSpec JSON using Pydantic AI.
 - `detection_agent.py` – similar to the summarizer but also interprets the article and proposes detection strategies. Pass `--prompt` to experiment with custom system prompts.
 
-Run tests with `pytest`.
+Run tests with `poetry run pytest`.
+
+## Development
+
+Install dependencies with [Poetry](https://python-poetry.org/):
+
+```bash
+poetry install
+```
+
+Run tools through Poetry, e.g.
+
+```bash
+poetry run python -m detectobot.agents.summarizer
+```
