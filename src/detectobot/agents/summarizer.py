@@ -159,6 +159,7 @@ def fetch_article_text(url: str) -> str:
 
 
 def main() -> argparse.Namespace:
+    """Parse command-line arguments for the summarizer utility."""
     parser = argparse.ArgumentParser(description="Summarize a threat intel article")
     parser.add_argument("url", nargs="?", help="Article URL to process")
     parser.add_argument("--prompt", help="Override system prompt text or path to file")

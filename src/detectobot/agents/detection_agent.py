@@ -1,9 +1,10 @@
+"""CLI tool that summarizes articles and proposes detections using an LLM."""
+
 import os
 import argparse
 from pydantic import BaseModel
 from pydantic_ai.llm.openai import OpenAIChat
 from pydantic_ai.prompt import Prompt
-import time
 import requests
 from bs4 import BeautifulSoup
 from readability import Document
@@ -82,10 +83,24 @@ def fetch_article_text(url: str) -> str:
         return f"[ERROR fetching article: {e}]"
 
 
-if __name__ == "__main__":
+def main() -> None:
+    """Execute the detection agent from the command line."""
     parser = argparse.ArgumentParser(description="Detection engineering agent")
-    parser.add_argument("--prompt", help="Override system prompt text or path to file")
-    parser.add_argument("--dry-run", action="store_true", help="Preview article text only")
+    parser.add_argument(
+        "--prompt",
+        help="Override system prompt text or path to file",
+    )
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Preview article text only",
+    )
+    parser.add_argument(
+        "--source",
+        choices=["feed", "site"],
+        default="feed",
+        help="Source type: feed (RSS) or site (HTML)",
+    )
     args = parser.parse_args()
 
     if args.prompt:
@@ -96,13 +111,7 @@ if __name__ == "__main__":
     else:
         system_prompt = DEFAULT_PROMPT
 
-    parser.add_argument("--source", choices=["feed", "site"], default="feed", help="Source type: feed (RSS) or site (HTML)")
-    args = parser.parse_args()
-
-    if args.source == "feed":
-        sources = get_new_feed_links()
-    else:
-        sources = get_new_site_links()
+    sources = get_new_feed_links() if args.source == "feed" else get_new_site_links()
 
     for item in sources:
         name = item["name"]
@@ -116,3 +125,7 @@ if __name__ == "__main__":
             result = analyze_text(text, system_prompt)
             print(f"Summary:\n{result.summary}\n")
             print(f"Detection Strategy:\n{result.detection_strategy}\n")
+
+
+if __name__ == "__main__":
+    main()
