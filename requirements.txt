@@ -1,6 +1,8 @@
-pydantic>=2.0
-pydantic-ai>=0.1.8
-openai>=1.0
-requests
-beautifulsoup4
-readability-lxml
+feedparser>=6.0.10
+requests>=2.31.0
+openai>=1.0.0
+pyyaml>=6.0
+bs4>=0.0.2
+readability-lxml>=0.8.1
+lxml[html-clean]>=5.3.2
+pydantic-ai>=0.3.2

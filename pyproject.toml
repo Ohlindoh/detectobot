@@ -1,25 +1,23 @@
-[tool.poetry]
+[project]
 name = "detectobot"
 version = "0.1.0"
-# Remove package-mode = false or set to true
 description = "Agent-driven detection engineering pipeline"
-authors = ["Your Name <your@email.com>"]
-
-[tool.poetry.dependencies]
-python = "^3.11"
-feedparser = "^6.0.10"
-requests = "^2.31.0"
-openai = "^1.0.0"
-pyyaml = "^6.0" 
-bs4 = "^0.0.2"
-readability-lxml = "^0.8.1"
-lxml = {extras = ["html-clean"], version = "^5.3.2"}
-pydantic-ai = "^0.3.2"
-
-[[tool.poetry.packages]]
-include = "detectobot"
-from = "src"
+authors = [{name = "Your Name", email = "your@email.com"}]
+requires-python = ">=3.11"
+dependencies = [
+    "feedparser>=6.0.10",
+    "requests>=2.31.0",
+    "openai>=1.0.0",
+    "pyyaml>=6.0",
+    "bs4>=0.0.2",
+    "readability-lxml>=0.8.1",
+    "lxml[html-clean]>=5.3.2",
+    "pydantic-ai>=0.3.2",
+]
 
 [build-system]
-requires = ["poetry-core>=1.0.0"]
-build-backend = "poetry.core.masonry.api"
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

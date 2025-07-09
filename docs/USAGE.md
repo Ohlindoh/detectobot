@@ -2,10 +2,10 @@
 
 This document outlines common workflows when using **detectobot**.
 
-Install dependencies with [Poetry](https://python-poetry.org/):
+Install dependencies with [uv](https://github.com/astral-sh/uv):
 
 ```bash
-poetry install
+uv pip install -r requirements.txt
 ```
 
 ## Configuration
@@ -22,13 +22,13 @@ Fetch the latest unseen articles from configured websites and output a
 structured `DetectionSpec` JSON:
 
 ```bash
-poetry run python -m detectobot.agents.summarizer
+python -m detectobot.agents.summarizer
 ```
 
 Pass a specific URL to summarize just one article:
 
 ```bash
-poetry run python -m detectobot.agents.summarizer https://example.com/post
+python -m detectobot.agents.summarizer https://example.com/post
 ```
 
 ### Detection Agent
@@ -37,7 +37,7 @@ Generate both a summary and recommended detection strategy for each new
 article:
 
 ```bash
-poetry run python -m detectobot.agents.detection_agent --source site
+python -m detectobot.agents.detection_agent --source site
 ```
 
 Use `--dry-run` to print the raw article text without contacting the LLM.

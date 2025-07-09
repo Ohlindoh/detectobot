@@ -11,18 +11,23 @@ SQLite database so each run only processes unseen articles.
 - `summarizer.py` – processes a URL or new site links and outputs a DetectionSpec JSON using Pydantic AI.
 - `detection_agent.py` – similar to the summarizer but also interprets the article and proposes detection strategies. Pass `--prompt` to experiment with custom system prompts.
 
-Run tests with `poetry run pytest`.
+Install dependencies using [uv](https://github.com/astral-sh/uv) and run the tests with `pytest`.
+
+```bash
+uv pip install -r requirements.txt
+pytest
+```
 
 ## Development
 
-Install dependencies with [Poetry](https://python-poetry.org/):
+Install dependencies with [uv](https://github.com/astral-sh/uv):
 
 ```bash
-poetry install
+uv pip install -r requirements.txt
 ```
 
-Run tools through Poetry, e.g.
+Run the tools directly once dependencies are installed, e.g.
 
 ```bash
-poetry run python -m detectobot.agents.summarizer
+python -m detectobot.agents.summarizer
 ```
