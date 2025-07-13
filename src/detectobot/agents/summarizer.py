@@ -6,8 +6,7 @@ import requests
 from bs4 import BeautifulSoup
 from readability import Document
 from pydantic import BaseModel, HttpUrl
-from pydantic_ai.llm.openai import OpenAIChat
-from pydantic_ai.prompt import Prompt
+from pydantic_ai import Agent
 
 # Allow absolute imports for watcher utilities
 import sys
@@ -121,16 +120,15 @@ class DetectionSpec(BaseModel):
 
 def analyze_text(text: str, system_prompt: str = DEFAULT_PROMPT) -> DetectionSpec:
     """Send text to the LLM and parse the DetectionSpec."""
-    llm = OpenAIChat(
-        api_key=os.environ.get("OPENAI_API_KEY"),
-        model="gpt-4o",
+    agent = Agent(
+        "openai:gpt-4o",
+        system_prompt=system_prompt,
+        output_type=DetectionSpec,
     )
-    prompt = Prompt(
-        system=system_prompt,
-        user="{article_text}"
+    result = agent.run_sync(
+        f"Here is the article text:\n\n{text}",
     )
-    response = llm(prompt, DetectionSpec, article_text=text)
-    return response
+    return result.output
 
 
 def fetch_article_text(url: str) -> str:
@@ -190,5 +188,5 @@ if __name__ == "__main__":
         if args.dry_run:
             print(text)
         else:
-            result = analyze_text(text, system_prompt)
-            print(result.model_dump_json(indent=2))
+            spec = analyze_text(text, system_prompt)
+            print(spec.model_dump_json(indent=2))

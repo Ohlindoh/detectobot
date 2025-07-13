@@ -1,5 +1,4 @@
 """Website and feed monitoring functionality."""
-import os
 import sqlite3
 import feedparser
 import requests

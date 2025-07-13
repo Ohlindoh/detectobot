@@ -1,7 +1,6 @@
 """Database utilities for detectobot."""
 import hashlib
 import time
-import sqlite3
 import os
 
 # Define the database path relative to this file
